@@ -21,12 +21,18 @@ public class AuthenticationController : ControllerBase
     {
         var authResult = _authenticationService.Register(register.FirstName, register.LasrName, register.Email, register.Password);
 
-        return Ok(authResult);
+        var response = new AuthenticationResponse(authResult.user.Id, authResult.user.FirstName, authResult.user.LastName, authResult.user.Email, authResult.Token);
+
+        return Ok(response);
     }
 
     [HttpPost("login")]
     public IActionResult Login(LoginRequest login)
     {
-        return Ok(login);
+        var authResult = _authenticationService.Login(login.Email, login.Password);
+
+        var repsonse = new AuthenticationResponse(authResult.user.Id, authResult.user.FirstName, authResult.user.LastName, authResult.user.Email, authResult.Token);
+
+        return Ok(repsonse);
     }
 }
