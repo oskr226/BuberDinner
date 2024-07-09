@@ -1,8 +1,14 @@
-﻿using BuberDinner.Application.Services.Authentication;
+﻿//using BuberDinner.Application.Services.Authentication.Commands;
+//using BuberDinner.Application.Services.Authentication.Queries;
+//using BuberDinner.Application.Services.Authentication.Common;
 using BuberDinner.Contracts.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using ErrorOr;
 using BuberDinner.Domain.Common.Errors;
+using MediatR;
+using BuberDinner.Application.Authentication.Commands.Register;
+using BuberDinner.Application.Authentication.Common;
+using BuberDinner.Application.Authentication.Queries.Login;
 //using OneOf;
 
 namespace BuberDinner.API.Controllers;
@@ -11,17 +17,30 @@ namespace BuberDinner.API.Controllers;
 //[ErrorHandlingFilter]
 public class AuthenticationController : ApiController
 {
-    private readonly IAuthenticationService _authenticationService;
+    private readonly IMediator _mediator;
 
-    public AuthenticationController(IAuthenticationService authenticationService)
+    public AuthenticationController(IMediator mediator)
     {
-        _authenticationService = authenticationService;
+        _mediator = mediator;
     }
 
+    //Ya no se usará la inyección de dependencias directamente. Ahora se realizará a través del _mediator
+    //private readonly IAuthenticationCommandService _authenticationCommandService;
+    //private readonly IAuthenticationQueryService _authenticationQueryService;
+
+    //public AuthenticationController(IAuthenticationCommandService authenticationCommandService, IAuthenticationQueryService authenticationQueryService)
+    //{
+    //    _authenticationCommandService = authenticationCommandService;
+    //    _authenticationQueryService = authenticationQueryService;
+    //}
+
     [HttpPost("register")]
-    public IActionResult Register(RegisterRequest register)
+    public async Task<IActionResult> Register(RegisterRequest register)
     {
-        ErrorOr<AuthenticationResult> registerResult = _authenticationService.Register(register.FirstName, register.LasrName, register.Email, register.Password);
+        var command = new RegisterCommand(register.FirstName, register.LasrName, register.Email, register.Password);
+
+        ErrorOr<AuthenticationResult> registerResult = await _mediator.Send(command);
+        //ErrorOr<AuthenticationResult> registerResult = _authenticationCommandService.Register(register.FirstName, register.LasrName, register.Email, register.Password);
 
         return registerResult.Match(registerResult => Ok(MapAuthenticationResponse(registerResult)),
             errors => Problem(errors)
@@ -45,23 +64,27 @@ public class AuthenticationController : ApiController
     private static AuthenticationResponse MapAuthenticationResponse(AuthenticationResult authenticationResult)
     {
         return new AuthenticationResponse(
-            authenticationResult.user.Id,
-            authenticationResult.user.FirstName,
-            authenticationResult.user.LastName,
-            authenticationResult.user.Email,
+            authenticationResult.User.Id,
+            authenticationResult.User.FirstName,
+            authenticationResult.User.LastName,
+            authenticationResult.User.Email,
             authenticationResult.Token
             );
     }
 
     private static AuthenticationResponse MapAuthResult(AuthenticationResult authResult)
     {
-        return new AuthenticationResponse(authResult.user.Id, authResult.user.FirstName, authResult.user.LastName, authResult.user.Email, authResult.Token);
+        return new AuthenticationResponse(authResult.User.Id, authResult.User.FirstName, authResult.User.LastName, authResult.User.Email, authResult.Token);
     }
 
     [HttpPost("login")]
-    public IActionResult Login(LoginRequest login)
+    public async Task<IActionResult> Login(LoginRequest login)
     {
-        ErrorOr<AuthenticationResult> authResult = _authenticationService.Login(login.Email, login.Password);
+        var query = new LoginQuery(login.Email, login.Password);
+
+        ErrorOr<AuthenticationResult> authResult = await _mediator.Send(query);
+
+        //ErrorOr<AuthenticationResult> authResult = _authenticationQueryService.Login(login.Email, login.Password);
 
         if(authResult.IsError && authResult.FirstError == Errors.Authentication.InvalidCredentials)
         {
