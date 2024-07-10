@@ -9,6 +9,7 @@ using MediatR;
 using BuberDinner.Application.Authentication.Commands.Register;
 using BuberDinner.Application.Authentication.Common;
 using BuberDinner.Application.Authentication.Queries.Login;
+using MapsterMapper;
 //using OneOf;
 
 namespace BuberDinner.API.Controllers;
@@ -18,10 +19,12 @@ namespace BuberDinner.API.Controllers;
 public class AuthenticationController : ApiController
 {
     private readonly IMediator _mediator;
+    private readonly IMapper _mapper;
 
-    public AuthenticationController(IMediator mediator)
+    public AuthenticationController(IMediator mediator, IMapper mapper)
     {
         _mediator = mediator;
+        _mapper = mapper;
     }
 
     //Ya no se usará la inyección de dependencias directamente. Ahora se realizará a través del _mediator
@@ -37,12 +40,13 @@ public class AuthenticationController : ApiController
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest register)
     {
-        var command = new RegisterCommand(register.FirstName, register.LasrName, register.Email, register.Password);
+        //var command = new RegisterCommand(register.FirstName, register.LasrName, register.Email, register.Password);
+        var command = _mapper.Map<RegisterCommand>(register);
 
         ErrorOr<AuthenticationResult> registerResult = await _mediator.Send(command);
         //ErrorOr<AuthenticationResult> registerResult = _authenticationCommandService.Register(register.FirstName, register.LasrName, register.Email, register.Password);
 
-        return registerResult.Match(registerResult => Ok(MapAuthenticationResponse(registerResult)),
+        return registerResult.Match(registerResult => Ok(_mapper.Map<AuthenticationResponse>(registerResult)),
             errors => Problem(errors)
             );
 
@@ -61,26 +65,32 @@ public class AuthenticationController : ApiController
         //return Problem();
     }
 
-    private static AuthenticationResponse MapAuthenticationResponse(AuthenticationResult authenticationResult)
-    {
-        return new AuthenticationResponse(
-            authenticationResult.User.Id,
-            authenticationResult.User.FirstName,
-            authenticationResult.User.LastName,
-            authenticationResult.User.Email,
-            authenticationResult.Token
-            );
-    }
+    //private static AuthenticationResponse MapAuthenticationResponse(AuthenticationResult authenticationResult)
+    //{
+    //    return new AuthenticationResponse(
+    //        authenticationResult.User.Id,
+    //        authenticationResult.User.FirstName,
+    //        authenticationResult.User.LastName,
+    //        authenticationResult.User.Email,
+    //        authenticationResult.Token
+    //        );
+    //}
 
-    private static AuthenticationResponse MapAuthResult(AuthenticationResult authResult)
-    {
-        return new AuthenticationResponse(authResult.User.Id, authResult.User.FirstName, authResult.User.LastName, authResult.User.Email, authResult.Token);
-    }
+    //private static AuthenticationResponse MapAuthResult(AuthenticationResult authResult)
+    //{
+    //    return new AuthenticationResponse(
+    //        authResult.User.Id, 
+    //        authResult.User.FirstName, 
+    //        authResult.User.LastName, 
+    //        authResult.User.Email, 
+    //        authResult.Token);
+    //}
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest login)
     {
-        var query = new LoginQuery(login.Email, login.Password);
+        var query = _mapper.Map<LoginQuery>(login);
+        //var query = new LoginQuery(login.Email, login.Password);
 
         ErrorOr<AuthenticationResult> authResult = await _mediator.Send(query);
 
@@ -91,7 +101,7 @@ public class AuthenticationController : ApiController
             return Problem(statusCode: StatusCodes.Status401Unauthorized, title: authResult.FirstError.Description);
         }
 
-        return authResult.Match(authResult => Ok(MapAuthenticationResponse(authResult)),
+        return authResult.Match(authResult => Ok(_mapper.Map<AuthenticationResponse>(authResult)),
             errors => Problem(errors)
             );
 
